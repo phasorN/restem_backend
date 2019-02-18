@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>User Login</title>
+</head>
+<body style="padding: 0px; margin: 0px;">
+
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<script type="text/javascript">
+		var token = ""
+		function login(){
+			var client_id = "";
+			var client_secret = "";
+
+			var username = $('#username').val();
+			var password = $('#password').val();
+
+			var grant_type = "password"
+
+			var data_urlencoded = "grant_type=password&username=" + username + "&password=" + password;
+			$.ajax(
+				{
+					url: "https://restem.pythonanywhere.com/o/token/",
+					method: "POST",
+					dataType: "json",
+
+					// Data should be in urlencoded format, specified in OAuth Specification.
+					contentType: "application/x-www-form-urlencoded",		// Very Important
+					beforeSend: function (xhr) {
+				        /* Authorization header */
+				        xhr.setRequestHeader('Authorization', 'Basic ' + btoa(client_id + ":" + client_secret))
+					},
+
+					data: data_urlencoded,
+
+					success: function(data){
+						token = data['access_token'];
+						var expires_in = data['expires_in'];
+
+						var expires = new Date();
+						expires.setTime(expires.getTime() + (1 * 24 * 60 * 60 * (parseInt(data['expires_in']) ) ) );
+						console.log(expires.toUTCString());
+
+						var cookie_string =  'token=' + data['access_token'] + "; expires=" + expires.toUTCString() + "; path='/";
+						console.log(cookie_string);
+
+						document.cookie = cookie_string;
+
+						request_user_details();
+					},
+					error: function(xhr, textStatus, errorThrown){
+							var error_data = JSON.parse(xhr.responseText)
+
+							$('#error').html(error_data['error_description']);
+					}
+				})
+			}
+
+			function request_user_details(){
+				$.ajax(
+					{
+						url: "https://restem.pythonanywhere.com/users/",
+						method: "GET",
+						dataType: "json",
+						contentType: "application/json",
+						// data: JSON.stringify(data_obj),
+						beforeSend: function (xhr) {
+					        /* Authorization header */
+					        xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+						},
+						success: function(data){
+							// console.log(data)
+							// A queryset filtered by pk is passed, so only one element.
+							data = data[0];
+
+							$('#id_d').html( data.id.toString() ? data.id.toString() : "Not Provided.")
+							$('#username_d').html( data.username.toString() ? data.username.toString() : "Not Provided.")
+							$('#email_d').html( data.email.toString() ? data.email.toString() : "Not Provided.")
+							$('#first_name_d').html( data.first_name.toString() ? data.first_name.toString() : "Not Provided.")
+							$('#last_name_d').html( data.last_name.toString() ? data.last_name.toString() : "Not Provided.")
+
+
+							$('#login_page').hide();
+							$('#after_login').show();
+
+							$('#error').html("")
+							$('#error').hide()
+						}
+					})
+				}
+			function request_expenses_list (){
+				$.ajax(
+					{
+						url: "https://restem.pythonanywhere.com/expenses/",
+						method: "GET",
+						dataType: "json",
+						contentType: "application/json",
+						// data: JSON.stringify(data_obj),
+						beforeSend: function (xhr) {
+					        /* Authorization header */
+					        xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+						},
+						success: function(data){
+							// console.log(typeof(data));
+							var expenses_readable = "";
+							for(x in data){
+								for(key in data[x]){
+									// console.log(key + ": " + data[x][key]);
+									if(key == "description"){
+										data[x][key] = data[x][key].replace(/(?:\r\n|\r|\n)/g, '--');
+									}
+									expenses_readable += key + ": " + data[x][key] + ";\n";
+								}
+								expenses_readable += "<br>"
+							}
+
+							$('#expenses_d').html(expenses_readable);
+						}
+					})
+				}
+				function create_new_expense (){
+				$.ajax(
+					{
+						url: "https://restem.pythonanywhere.com/expenses/",
+						method: "POST",
+						dataType: "json",
+						contentType: "application/json",
+						// data: JSON.stringify(data_obj),
+						beforeSend: function (xhr) {
+					        /* Authorization header */
+					        xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+						},
+						success: function(data){
+							// console.log(typeof(data));
+
+						}
+					})
+				}
+	</script>
+
+	<div id="login_page" style="padding: 10px; box-sizing: border-box; z-index: 1000; width: 100vw; height: 100vh">
+		<h3>User Login</h3>
+		<!-- <form> -->
+			<p id="error" style="color: red"></p>
+			<input type="text" name="username" id="username" placeholder="Username">
+			<input type="password" name="password" id="password" placeholder="Password">
+			<button onclick="login()">Login</button>
+		<!-- </form> -->
+	</div>
+
+	<div id="after_login" style="display: none; padding: 10px; box-sizing: border-box;">
+		<p>Id: <span id="id_d"></span></p>
+		<p>Username: <span id="username_d"></span></p>
+		<p>Email: <span id="email_d"></span></p>
+		<p>F Name: <span id="first_name_d"></span></p>
+		<p>L Name: <span id="last_name_d"></span></p>
+
+		<p id="expenses_d"></p>
+
+		<button onclick="request_expenses_list()">Fetch Expenses List</button>
+	</div>
+</body>
+</html>
